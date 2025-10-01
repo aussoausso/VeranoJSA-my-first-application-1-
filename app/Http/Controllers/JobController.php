@@ -9,14 +9,12 @@ use Illuminate\Http\Request;
 
 class JobController extends Controller
 {
-    // Show all jobs
     public function index()
     {
         $jobs = Job::with(['employer', 'tags'])->paginate(10);
         return view('jobs.index', compact('jobs'));
     }
 
-    // Show create form
     public function create()
     {
         $employers = Employer::all();
@@ -24,33 +22,32 @@ class JobController extends Controller
         return view('jobs.create', compact('employers', 'tags'));
     }
 
-    // Store a new job
     public function store(Request $request)
     {
         $validated = $request->validate([
             'title'       => 'required|string|min:3',
             'salary'      => 'required|string',
             'employer_id' => 'required|exists:employers,id',
-            'tags'        => 'array',
+            'tags'        => 'required|array|min:1',   // ✅ must select at least one
             'tags.*'      => 'exists:tags,id',
         ]);
 
-        $job = Job::create($validated);
+        $job = Job::create([
+            'title'       => $validated['title'],
+            'salary'      => $validated['salary'],
+            'employer_id' => $validated['employer_id'],
+        ]);
 
-        if (!empty($validated['tags'])) {
-            $job->tags()->attach($validated['tags']);
-        }
+        $job->tags()->attach($validated['tags']);
 
-        return redirect('/jobs');
+        return redirect()->route('jobs.index');
     }
 
-    // Show a single job
     public function show(Job $job)
     {
         return view('jobs.show', compact('job'));
     }
 
-    // Show edit form
     public function edit(Job $job)
     {
         $employers = Employer::all();
@@ -58,28 +55,30 @@ class JobController extends Controller
         return view('jobs.edit', compact('job', 'employers', 'tags'));
     }
 
-    // Update an existing job
     public function update(Request $request, Job $job)
     {
         $validated = $request->validate([
             'title'       => 'required|string|min:3',
             'salary'      => 'required|string',
             'employer_id' => 'required|exists:employers,id',
-            'tags'        => 'array',
+            'tags'        => 'required|array|min:1',   // ✅ must select at least one
             'tags.*'      => 'exists:tags,id',
         ]);
 
-        $job->update($validated);
-        $job->tags()->sync($validated['tags'] ?? []);
+        $job->update([
+            'title'       => $validated['title'],
+            'salary'      => $validated['salary'],
+            'employer_id' => $validated['employer_id'],
+        ]);
 
-        return redirect('/jobs/' . $job->id);
+        $job->tags()->sync($validated['tags']);
+
+        return redirect()->route('jobs.show', $job);
     }
 
-    // Delete a job
     public function destroy(Job $job)
     {
         $job->delete();
-        return redirect('/jobs');
+        return redirect()->route('jobs.index');
     }
 }
-//
